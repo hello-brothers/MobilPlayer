@@ -1,18 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    android:orientation="vertical"
+    tools:context=".activity.MainActivity">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <!-- 标题栏-->
+    <include layout="@layout/title_layout"/>
+    <!-- Framlayout-->
+    <FrameLayout
+        android:id="@+id/fl_pager"
+        android:layout_weight="1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+    </FrameLayout>
+
+    <!--RadioGroup -->
+    <RadioGroup
+        android:id="@+id/rg_tag_bottom"
+        android:background="#11000000"
+        android:layout_width="match_parent"
+        android:orientation="horizontal"
         android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:padding="3dp">
 
-</android.support.constraint.ConstraintLayout>
+        <RadioButton
+            android:id="@+id/rb_video"
+            android:drawableTop="@drawable/rb_video_drawable_select"
+            android:text="本地视频"
+            style="@style/Bottom_tag_radiobuttom"
+            />
+
+        <RadioButton
+            android:id="@+id/rb_audio"
+            android:drawableTop="@drawable/rb_audio_drawable_select"
+            android:text="本地音频"
+            style="@style/Bottom_tag_radiobuttom"
+            />
+
+        <RadioButton
+            android:id="@+id/rb_net_video"
+            android:drawableTop="@drawable/rb_net_video_drawable_select"
+            android:text="网络视频"
+            style="@style/Bottom_tag_radiobuttom"
+            />
+
+        <RadioButton
+            android:id="@+id/rb_net_audio"
+            android:drawableTop="@drawable/rb_net_audio_drawable_select"
+            android:text="网络音频"
+            style="@style/Bottom_tag_radiobuttom"
+            />
+
+
+
+    </RadioGroup>
+
+</LinearLayout>
