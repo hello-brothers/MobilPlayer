@@ -18,27 +18,30 @@ import java.util.List;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class MyAdapter extends RecyclerView.Adapter<MyAdapter.ViewHolder> {
+public class VideoRecyAdapter extends RecyclerView.Adapter<VideoRecyAdapter.ViewHolder> implements View.OnClickListener {
     private final Context context;
     private final List<MediaItem> medias;
+    private OnItemClickListener listener;
 
-    public MyAdapter(Context context, List<MediaItem> medias) {
+    public VideoRecyAdapter(Context context, List<MediaItem> medias) {
         this.context = context;
         this.medias = medias;
     }
 
     @NonNull
     @Override
-    public MyAdapter.ViewHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
+    public VideoRecyAdapter.ViewHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
         View view = LayoutInflater.from(context).inflate(R.layout.video_item, viewGroup, false);
         ButterKnife.bind(this, view);
+        view.setOnClickListener(this);
         ViewHolder holder = new ViewHolder(view);
         return holder;
     }
 
     @Override
-    public void onBindViewHolder(@NonNull MyAdapter.ViewHolder viewHolder, int i) {
+    public void onBindViewHolder(@NonNull VideoRecyAdapter.ViewHolder viewHolder, int i) {
         MediaItem media = medias.get(i);
+        viewHolder.itemView.setTag(i);
         viewHolder.tv_name.setText(media.getName());
         viewHolder.tv_size.setText(Formatter.formatFileSize(context, media.getSize()));
         viewHolder.tv_time.setText(new Utils().stringForTime(media.getDuration().intValue()));
@@ -47,6 +50,13 @@ public class MyAdapter extends RecyclerView.Adapter<MyAdapter.ViewHolder> {
     @Override
     public int getItemCount() {
         return medias.size();
+    }
+
+    @Override
+    public void onClick(View v) {
+        if (listener != null){
+            listener.onItemClick(v, (Integer) v.getTag());
+        }
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {
@@ -60,5 +70,17 @@ public class MyAdapter extends RecyclerView.Adapter<MyAdapter.ViewHolder> {
             super(itemView);
             ButterKnife.bind(this, itemView);
         }
+    }
+
+    /**
+     * 定义一个item点击的接口
+     */
+    public interface OnItemClickListener{
+
+        void onItemClick(View view, int position);
+    }
+
+    public void setOnItemClickListener(OnItemClickListener listener) {
+        this.listener = listener;
     }
 }

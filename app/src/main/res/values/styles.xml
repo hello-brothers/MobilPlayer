@@ -21,5 +21,9 @@
 
     </style>
 
+    <style name="system_video" parent="AppTheme">
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
 
 </resources>
