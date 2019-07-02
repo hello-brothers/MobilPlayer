@@ -1,5 +1,9 @@
 package com.hellobrothers.mobileplayer.activity;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Handler;
@@ -7,6 +11,7 @@ import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.MediaController;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -15,6 +20,9 @@ import android.widget.VideoView;
 
 import com.hellobrothers.mobileplayer.R;
 import com.hellobrothers.mobileplayer.utils.Utils;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -37,6 +45,11 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
     TextView tv_time;
     @BindView(R.id.video_name)
     TextView tv_videoname;
+    @BindView(R.id.img_battery)
+    ImageView img_battery;
+    @BindView(R.id.system_time)
+    TextView tv_system_time;
+    private MBatteryBroadcastReceivery myBatteryBroadcastReceiver;
     private Handler handler = new Handler(new Handler.Callback() {
         @Override
         public boolean handleMessage(Message msg) {
@@ -44,14 +57,33 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
                 case PROGRESS:
                     int currentPosition = videoView.getCurrentPosition();
                     seekBar.setProgress(currentPosition);
-                    tv_current_time.setText(new Utils().stringForTime(currentPosition));
+                    tv_current_time.setText(utils.stringForTime(currentPosition));
+                    //设置系统时间
+                    tv_system_time.setText(getSystemTime());
+                    //每秒更新一次
                     handler.removeMessages(PROGRESS);
-                    handler.sendEmptyMessageDelayed(PROGRESS, 400);
+                    handler.sendEmptyMessageDelayed(PROGRESS, 1000);
                     break;
             }
             return false;
         }
     });
+
+    private String getSystemTime() {
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+        return sdf.format(new Date());
+    }
+
+    private void initData() {
+        utils = new Utils();
+        //更新电池变化
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(Intent.ACTION_BATTERY_CHANGED);
+        myBatteryBroadcastReceiver = new MBatteryBroadcastReceivery();
+        registerReceiver(myBatteryBroadcastReceiver, intentFilter);
+    }
+
+    private Utils utils;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +91,7 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
         setContentView(R.layout.activity_system_video_player);
         ButterKnife.bind(this);
         initVideo();
+        initData();
         //得到播放地址
         Uri uri = getIntent().getData();
         if (uri != null){
@@ -87,8 +120,8 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
         videoView.start();
         int duration = videoView.getDuration();
         seekBar.setMax(duration);
-        tv_time.setText(new Utils().stringForTime(duration));
-        tv_current_time.setText(new Utils().stringForTime(0));
+        tv_time.setText(utils.stringForTime(duration));
+        tv_current_time.setText(utils.stringForTime(0));
         handler.sendEmptyMessage(PROGRESS);
     }
 
@@ -156,5 +189,24 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
     @Override
     public void onStopTrackingTouch(SeekBar seekBar) {
 
+    }
+
+    private class MBatteryBroadcastReceivery extends BroadcastReceiver{
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int level = intent.getIntExtra("level", 0);
+            img_battery.setImageResource(R.drawable.ic_battery_100);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (myBatteryBroadcastReceiver!=null){
+            unregisterReceiver(myBatteryBroadcastReceiver);
+            myBatteryBroadcastReceiver = null;
+
+        }
+        super.onDestroy();
     }
 }
