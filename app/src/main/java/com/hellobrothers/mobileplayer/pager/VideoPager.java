@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
@@ -27,6 +28,7 @@ import com.hellobrothers.mobileplayer.adapter.VideoRecyAdapter;
 import com.hellobrothers.mobileplayer.base.Basepager;
 import com.hellobrothers.mobileplayer.domain.MediaItem;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,9 +72,16 @@ public class VideoPager extends Basepager {
                 intent.setDataAndType(Uri.parse(medias.get(position).getName()), "video/*");
                 context.startActivity(intent);*/
 
-               //2、app自带播放器
+               //2、app自带播放器 一个播放地址
+//                Intent intent = new Intent(context, SystemVideoPlayer.class);
+//                intent.setDataAndType(Uri.parse(medias.get(position).getPath()), "video/*");
+//                context.startActivity(intent);
+
                 Intent intent = new Intent(context, SystemVideoPlayer.class);
-                intent.setDataAndType(Uri.parse(medias.get(position).getPath()), "video/*");
+                Bundle bundle = new Bundle();
+                bundle.putSerializable("medialist", (Serializable) medias);
+                intent.putExtras(bundle);
+                intent.putExtra("position", position);
                 context.startActivity(intent);
             }
         });

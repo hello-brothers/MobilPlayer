@@ -1,6 +1,8 @@
 package com.hellobrothers.mobileplayer.domain;
 
-public class MediaItem {
+import java.io.Serializable;
+
+public class MediaItem implements Serializable {
     private String name;
     private Long duration;
     private Long size;

@@ -19,9 +19,12 @@ import android.widget.Toast;
 import android.widget.VideoView;
 
 import com.hellobrothers.mobileplayer.R;
+import com.hellobrothers.mobileplayer.domain.MediaItem;
 import com.hellobrothers.mobileplayer.utils.Utils;
 
+import java.io.Serializable;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 import butterknife.BindView;
@@ -49,6 +52,10 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
     ImageView img_battery;
     @BindView(R.id.system_time)
     TextView tv_system_time;
+    @BindView(R.id.btn_video_next)
+    Button btn_next;
+    @BindView(R.id.btn_video_pre)
+    Button btn_pre;
     private MBatteryBroadcastReceivery myBatteryBroadcastReceiver;
     private Handler handler = new Handler(new Handler.Callback() {
         @Override
@@ -68,20 +75,25 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
             return false;
         }
     });
+    /**
+     * 单个视频播放地址
+     */
+    private Uri uri;
+    /**
+     * 视频列表
+     */
+    private ArrayList<MediaItem> medialist;
+    /**
+     * 播放视频的位置
+     */
+    private int position;
 
     private String getSystemTime() {
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
         return sdf.format(new Date());
     }
 
-    private void initData() {
-        utils = new Utils();
-        //更新电池变化
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(Intent.ACTION_BATTERY_CHANGED);
-        myBatteryBroadcastReceiver = new MBatteryBroadcastReceivery();
-        registerReceiver(myBatteryBroadcastReceiver, intentFilter);
-    }
+
 
     private Utils utils;
 
@@ -92,11 +104,9 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
         ButterKnife.bind(this);
         initVideo();
         initData();
-        //得到播放地址
-        Uri uri = getIntent().getData();
-        if (uri != null){
-            videoView.setVideoURI(uri);
-        }
+        getData();
+        setData();
+        updateControlView();
     }
 
     /**
@@ -109,6 +119,103 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
         //设置控制面板
 //        videoView.setMediaController(new MediaController(this));
         seekBar.setOnSeekBarChangeListener(this);
+    }
+
+    /**
+     * 初始化数据 --> 广告接收者 得到电池的系统通知
+     */
+    private void initData() {
+        utils = new Utils();
+        //更新电池变化
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(Intent.ACTION_BATTERY_CHANGED);
+        myBatteryBroadcastReceiver = new MBatteryBroadcastReceivery();
+        registerReceiver(myBatteryBroadcastReceiver, intentFilter);
+    }
+
+    /**
+     * 通过intent得到需要播放的数据
+     */
+    private void getData() {
+        //得到播放地址
+        uri = getIntent().getData();
+        medialist = (ArrayList<MediaItem>) getIntent().getSerializableExtra("medialist");
+        position = getIntent().getIntExtra("position", 0);
+
+    }
+
+    /**
+     * 设置播放数据
+     */
+    private void setData() {
+        if (medialist!=null&&medialist.size()>0){
+            MediaItem item = medialist.get(position);
+            videoView.setVideoPath(item.getPath());
+            tv_videoname.setText(item.getName());
+        }else if (uri != null){
+            videoView.setVideoURI(uri);
+            tv_videoname.setText(uri.toString());
+        }else {
+            Toast.makeText(this, "小哥哥没有传递数据", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * 暂停开始事件
+     */
+    @OnClick(R.id.btn_pause)
+    public void controlView(){
+        if (videoView.isPlaying()){
+            btn_pause.setBackgroundResource(R.drawable.btn_video_start_select);
+            videoView.pause();
+        }else {
+            btn_pause.setBackgroundResource(R.drawable.btn_video_pause_select);
+            videoView.start();
+        }
+    }
+
+    /**
+     * 下一个视频播放
+     */
+    @OnClick(R.id.btn_video_next)
+    public void nextVideo(){
+        if (medialist!=null&&medialist.size()>0){
+            position = (position+1) < medialist.size() ? position + 1 :  position;
+            updateVideoView();
+        }
+    }
+
+    /**
+     * 播放上一个视频
+     */
+    @OnClick(R.id.btn_video_pre)
+    public void preVideo(){
+        if (medialist != null && medialist.size() > 0){
+            position = (position - 1) < 0 ? 0 : position-1;
+            updateVideoView();
+        }
+    }
+
+    /**
+     * 更新播放视频以及视频名称
+     */
+    private void updateVideoView() {
+        MediaItem item = medialist.get(position);
+        videoView.setVideoPath(item.getPath());
+        tv_videoname.setText(item.getName());
+        updateControlView();
+    }
+
+    /**
+     * 更新视频播放器的next和pre按钮
+     */
+    private void updateControlView() {
+        btn_next.setBackgroundResource(position == medialist.size()-1 ? R.drawable.btn_next_gray : R.drawable.btn_video_next_select);
+        btn_next.setEnabled(position == medialist.size()-1 ? false : true);
+
+        btn_pre.setBackgroundResource(position == 0 ? R.drawable.btn_pre_gray : R.drawable.btn_video_pre_select);
+        btn_pre.setEnabled(position == 0 ? false : true);
+
     }
 
     /**
@@ -146,19 +253,6 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
         Toast.makeText(this, "播放完成了哟！", Toast.LENGTH_SHORT).show();
     }
 
-    @OnClick(R.id.btn_pause)
-    public void controlView(){
-        if (videoView.isPlaying()){
-            Toast.makeText(this, "暂停", Toast.LENGTH_SHORT).show();
-            btn_pause.setBackgroundResource(R.drawable.btn_video_start_select);
-            videoView.pause();
-        }else {
-
-            Toast.makeText(this, "开始", Toast.LENGTH_SHORT).show();
-            btn_pause.setBackgroundResource(R.drawable.btn_video_pause_select);
-            videoView.start();
-        }
-    }
 
     /**
      * 进度改变就有回调
@@ -191,6 +285,9 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
 
     }
 
+    /**
+     * 自定义BroadcastReceiver
+     */
     private class MBatteryBroadcastReceivery extends BroadcastReceiver{
 
         @Override
@@ -200,6 +297,10 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
         }
     }
 
+
+    /**
+     * 销毁注销相关数据
+     */
     @Override
     protected void onDestroy() {
         if (myBatteryBroadcastReceiver!=null){
