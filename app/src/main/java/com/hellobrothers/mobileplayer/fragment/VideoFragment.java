@@ -1,19 +1,16 @@
-package com.hellobrothers.mobileplayer.pager;
+package com.hellobrothers.mobileplayer.fragment;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.os.SystemClock;
 import android.provider.MediaStore;
+import android.support.annotation.NonNull;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -25,7 +22,7 @@ import android.widget.Toast;
 import com.hellobrothers.mobileplayer.R;
 import com.hellobrothers.mobileplayer.activity.SystemVideoPlayer;
 import com.hellobrothers.mobileplayer.adapter.VideoRecyAdapter;
-import com.hellobrothers.mobileplayer.base.Basepager;
+import com.hellobrothers.mobileplayer.base.BaseFragment;
 import com.hellobrothers.mobileplayer.domain.MediaItem;
 
 import java.io.Serializable;
@@ -33,11 +30,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import butterknife.BindView;
-import butterknife.ButterKnife;
+import permissions.dispatcher.NeedsPermission;
+import permissions.dispatcher.RuntimePermissions;
 
-public class VideoPager extends Basepager {
-
-    private View view;
+@RuntimePermissions
+public class VideoFragment extends BaseFragment {
     @BindView(R.id.pb_loading)
     ProgressBar pb_loading;
     @BindView(R.id.tv_no_data)
@@ -59,57 +56,34 @@ public class VideoPager extends Basepager {
         }
     });
 
-    private void showVideo() {
-        recyclerView.setLayoutManager(new LinearLayoutManager(context));
-        recyclerView.addItemDecoration(new DividerItemDecoration(context, DividerItemDecoration.VERTICAL));
-        VideoRecyAdapter videoAdapter = new VideoRecyAdapter(context, medias);
-        videoAdapter.setOnItemClickListener(new VideoRecyAdapter.OnItemClickListener() {
-            @Override
-            public void onItemClick(View view, int position) {
-                Toast.makeText(context.getApplicationContext(), position+"", Toast.LENGTH_SHORT).show();
-                //1、本地视频播放器
-               /* Intent intent = new Intent();
-                intent.setDataAndType(Uri.parse(medias.get(position).getName()), "video/*");
-                context.startActivity(intent);*/
 
-               //2、app自带播放器 一个播放地址
-//                Intent intent = new Intent(context, SystemVideoPlayer.class);
-//                intent.setDataAndType(Uri.parse(medias.get(position).getPath()), "video/*");
-//                context.startActivity(intent);
+    public VideoFragment() {
+        super();
 
-                Intent intent = new Intent(context, SystemVideoPlayer.class);
-                Bundle bundle = new Bundle();
-                bundle.putSerializable("medialist", (Serializable) medias);
-                intent.putExtras(bundle);
-                intent.putExtra("position", position);
-                context.startActivity(intent);
-            }
-        });
-        recyclerView.setAdapter(videoAdapter);
     }
 
-    public VideoPager(Context context) {
+    public VideoFragment(Context context) {
         super(context);
     }
 
     @Override
-    public View initView() {
-       view = View.inflate(context, R.layout.video_pager, null);
-       ButterKnife.bind(this, view);
-       return view;
+    public int setLayoutId() {
+        return R.layout.video_pager;
     }
 
     @Override
     public void initData() {
-        super.initData();
         System.out.println("初始化本地视频");
-        getLocalData();
+        VideoFragmentPermissionsDispatcher.getLocalDataWithPermissionCheck(this);
     }
+
 
     //加载本地数据
     //从内容提供者中获取
-    private void getLocalData() {
-        isGrantExternalRW((Activity)context);
+    @NeedsPermission({Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.CALL_PHONE})
+    public void getLocalData() {
+//        isGrantExternalRW((Activity)context);
+
         medias = new ArrayList<>();
         pb_loading.setVisibility(View.VISIBLE);
         new Thread(new Runnable() {
@@ -143,20 +117,45 @@ public class VideoPager extends Basepager {
                         medias.add(mediaItem);
                     }
                 }
+                cursor.close();
 
                 handler.sendEmptyMessage(1);
             }
         }).start();
     }
 
-    private boolean isGrantExternalRW(Activity activity) {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M && activity.checkSelfPermission(
-                Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
-            activity.requestPermissions(new String[]{
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE
-            }, 1);
-            return false;
-        }
-        return true;
+    private void showVideo() {
+        recyclerView.setLayoutManager(new LinearLayoutManager(context));
+        recyclerView.addItemDecoration(new DividerItemDecoration(context, DividerItemDecoration.VERTICAL));
+        VideoRecyAdapter videoAdapter = new VideoRecyAdapter(context, medias);
+        videoAdapter.setOnItemClickListener(new VideoRecyAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(View view, int position) {
+                Toast.makeText(context.getApplicationContext(), position+"", Toast.LENGTH_SHORT).show();
+                //1、本地视频播放器
+               /* Intent intent = new Intent();
+                intent.setDataAndType(Uri.parse(medias.get(position).getName()), "video/*");
+                context.startActivity(intent);*/
+
+                //2、app自带播放器 一个播放地址
+//                Intent intent = new Intent(context, SystemVideoPlayer.class);
+//                intent.setDataAndType(Uri.parse(medias.get(position).getPath()), "video/*");
+//                context.startActivity(intent);
+
+                Intent intent = new Intent(context, SystemVideoPlayer.class);
+                Bundle bundle = new Bundle();
+                bundle.putSerializable("medialist", (Serializable) medias);
+                intent.putExtras(bundle);
+                intent.putExtra("position", position);
+                context.startActivity(intent);
+            }
+        });
+        recyclerView.setAdapter(videoAdapter);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        VideoFragmentPermissionsDispatcher.onRequestPermissionsResult(this, requestCode, grantResults);
     }
 }
