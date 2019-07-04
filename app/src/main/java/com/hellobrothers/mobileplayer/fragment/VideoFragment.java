@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.DividerItemDecoration;
@@ -66,6 +67,10 @@ public class VideoFragment extends BaseFragment {
         super(context);
     }
 
+    /**
+     * 设置当前fragment的xml
+     * @return
+     */
     @Override
     public int setLayoutId() {
         return R.layout.video_pager;

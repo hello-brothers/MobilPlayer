@@ -4,12 +4,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -20,11 +22,11 @@ import android.widget.RelativeLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.VideoView;
 
 import com.hellobrothers.mobileplayer.R;
 import com.hellobrothers.mobileplayer.domain.MediaItem;
 import com.hellobrothers.mobileplayer.utils.Utils;
+import com.hellobrothers.mobileplayer.view.VideoView;
 
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
@@ -46,7 +48,7 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
     @BindView(R.id.btn_pause)
     Button btn_pause;
     @BindView(R.id.seekbar_video)
-    SeekBar seekBar;
+    SeekBar video_seekBar;
     @BindView(R.id.tx_current_time)
     TextView tv_current_time;
     @BindView(R.id.tv_duration)
@@ -63,9 +65,38 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
     Button btn_pre;
     @BindView(R.id.media_controller)
     RelativeLayout rl_media_controller;
+    @BindView(R.id.btn_video_switch)
+    Button btn_video_switch;
+    @BindView(R.id.seekbar_voice)
+    SeekBar voice_seekBar;
     //手势识别器
     private GestureDetector detector;
 
+    //声音管理
+    private AudioManager am;
+    //当前声音
+    private int currentAudio;
+    //最大声音
+    private int maxVolume;
+    //是否静音
+    private boolean isMute = false;
+
+
+    /**
+     * 屏幕宽与高
+     */
+    private int screenWidth, screenHeight;
+
+    /**
+     *视频的宽与高
+     */
+    private int videoHeight, videoWidth;
+    /**
+     * 创建屏幕类型tag
+     */
+    private int SCREEN_TYPE;
+    private final int FULL_SCREEN = 1;
+    private final int DEFAULT_SCREEN = 2;
     private GestureDetector.OnGestureListener gestureListener = new GestureDetector.SimpleOnGestureListener(){
         /**
          * 单击屏幕
@@ -95,9 +126,49 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
          */
         @Override
         public boolean onDoubleTap(MotionEvent e) {
+//            if (SCREEN_TYPE == FULL_SCREEN){
+//                setVideoType(DEFAULT_SCREEN);
+//                SCREEN_TYPE = DEFAULT_SCREEN;
+//            }else if (SCREEN_TYPE == DEFAULT_SCREEN){
+//                setVideoType(FULL_SCREEN);
+//                SCREEN_TYPE = FULL_SCREEN;
+//            }
+            setVideoType();
             return super.onDoubleTap(e);
         }
     };
+
+
+    private void setVideoType(int type) {
+        switch (type){
+            case FULL_SCREEN:
+                videoView.setVideoSize(screenWidth, screenHeight);
+                Toast.makeText(this, "全屏", Toast.LENGTH_SHORT).show();
+                btn_video_switch.setBackgroundResource(R.drawable.btn_video_switch_screen_default_select);
+                SCREEN_TYPE = FULL_SCREEN;
+                break;
+            case DEFAULT_SCREEN:
+                int mVideoWidth = videoWidth;
+                int mVideoHeight = videoHeight;
+
+                int height = screenHeight;
+                int width = screenWidth;
+
+                // for compatibility, we adjust size based on aspect ratio
+                if ( mVideoWidth * height  < width * mVideoHeight ) {
+                    //Log.i("@@@", "image too wide, correcting");
+                    width = height * mVideoWidth / mVideoHeight;
+                } else if ( mVideoWidth * height  > width * mVideoHeight ) {
+                    //Log.i("@@@", "image too tall, correcting");
+                    height = width * mVideoHeight / mVideoWidth;
+                }
+                Toast.makeText(this, "默认", Toast.LENGTH_SHORT).show();
+                videoView.setVideoSize(width, height);
+                btn_video_switch.setBackgroundResource(R.drawable.btn_video_switch_screen_full_select);
+                SCREEN_TYPE = DEFAULT_SCREEN;
+                break;
+        }
+    }
 
 
     private MBatteryBroadcastReceivery myBatteryBroadcastReceiver;
@@ -110,7 +181,7 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
                     break;
                 case PROGRESS:
                     int currentPosition = videoView.getCurrentPosition();
-                    seekBar.setProgress(currentPosition);
+                    video_seekBar.setProgress(currentPosition);
                     tv_current_time.setText(utils.stringForTime(currentPosition));
                     //设置系统时间
                     tv_system_time.setText(getSystemTime());
@@ -165,8 +236,18 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
         videoView.setOnCompletionListener(this);
         //设置控制面板
 //        videoView.setMediaController(new MediaController(this));
-        seekBar.setOnSeekBarChangeListener(this);
+        video_seekBar.setOnSeekBarChangeListener(this);
+        voice_seekBar.setOnSeekBarChangeListener(new MyVoiceSeekBarChangeListener());
         detector = new GestureDetector(this, gestureListener);
+        /**
+         * 得到屏幕的宽和高
+         */
+        DisplayMetrics metrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        screenHeight = metrics.heightPixels;
+        screenWidth = metrics.widthPixels;
+
+
     }
 
     /**
@@ -179,6 +260,9 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
         intentFilter.addAction(Intent.ACTION_BATTERY_CHANGED);
         myBatteryBroadcastReceiver = new MBatteryBroadcastReceivery();
         registerReceiver(myBatteryBroadcastReceiver, intentFilter);
+        am = (AudioManager) getSystemService(AUDIO_SERVICE);
+        currentAudio= am.getStreamVolume(AudioManager.STREAM_MUSIC);
+        maxVolume = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
     }
 
     /**
@@ -196,6 +280,8 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
      * 设置播放数据
      */
     private void setData() {
+        voice_seekBar.setMax(maxVolume);
+        voice_seekBar.setProgress(currentAudio);
         if (medialist!=null&&medialist.size()>0){
             MediaItem item = medialist.get(position);
             videoView.setVideoPath(item.getPath());
@@ -208,7 +294,7 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
         }
     }
 
-    @OnClick({R.id.btn_pause, R.id.btn_video_next, R.id.btn_video_pre})
+    @OnClick({R.id.btn_pause, R.id.btn_video_next, R.id.btn_video_pre, R.id.btn_video_switch, R.id.btn_voice})
     public void onViewClicked(View view) {
         handler.removeMessages(HIDE_MEDIACONTROL);
         switch (view.getId()) {
@@ -221,9 +307,24 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
             case R.id.btn_video_pre:
                 preVideo();
                 break;
+            case R.id.btn_video_switch:
+                setVideoType();
+                break;
+            case R.id.btn_voice:
+                isMute = isMute == false ? true : false;
+                updateVoice(currentAudio, isMute);
+                break;
         }
         handler.sendEmptyMessageDelayed(HIDE_MEDIACONTROL, 4000);
     }
+
+    /**
+     * 静音
+     */
+    private void muteVoice() {
+
+    }
+
     /**
      * 暂停开始事件
      */
@@ -283,17 +384,32 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
     }
 
     /**
+     * 设置视频全屏还是默认
+     */
+    private void setVideoType() {
+        setVideoType(SCREEN_TYPE == FULL_SCREEN ? DEFAULT_SCREEN : FULL_SCREEN);
+    }
+
+
+    /**
      * 播放准备好后调用
      * @param mp
      */
     @Override
     public void onPrepared(MediaPlayer mp) {
+        //得到视频的实际的宽与高
+        videoHeight = videoView.getHeight();
+        videoWidth = videoView.getWidth();
+        //开始
         videoView.start();
         int duration = videoView.getDuration();
-        seekBar.setMax(duration);
+        video_seekBar.setMax(duration);
         tv_time.setText(utils.stringForTime(duration));
         tv_current_time.setText(utils.stringForTime(0));
         handler.sendEmptyMessage(PROGRESS);
+//        videoView.setVideoSize(200, 100);
+        SCREEN_TYPE = DEFAULT_SCREEN;
+        setVideoType(SCREEN_TYPE);
     }
 
     /**
@@ -321,7 +437,7 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
 
     /**
      * 进度改变就有回调
-     * @param seekBar
+     * @param video_seekBar
      * @param progress
      * @param fromUser 用户手动改变为true
      */
@@ -393,5 +509,36 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
 
         }
         super.onDestroy();
+    }
+
+    private class MyVoiceSeekBarChangeListener implements SeekBar.OnSeekBarChangeListener {
+        @Override
+        public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            if (fromUser){
+                updateVoice(progress, false);
+            }
+        }
+
+        @Override
+        public void onStartTrackingTouch(SeekBar seekBar) {
+            handler.removeMessages(HIDE_MEDIACONTROL);
+        }
+
+        @Override
+        public void onStopTrackingTouch(SeekBar seekBar) {
+            handler.sendEmptyMessageDelayed(HIDE_MEDIACONTROL, 4000);
+        }
+    }
+
+    private void updateVoice(int progress, boolean isMute) {
+        if (isMute){
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
+            voice_seekBar.setProgress(0);
+        }else {
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, progress, 0);
+            voice_seekBar.setProgress(progress);
+            currentAudio = progress;
+        }
+
     }
 }
