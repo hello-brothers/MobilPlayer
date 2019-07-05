@@ -79,7 +79,7 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
     //最大声音
     private int maxVolume;
     //是否静音
-    private boolean isMute = false;
+    private boolean isMute = true;
 
 
     /**
@@ -97,6 +97,16 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
     private int SCREEN_TYPE;
     private final int FULL_SCREEN = 1;
     private final int DEFAULT_SCREEN = 2;
+
+    /**
+     * 用于互动屏幕改变音量
+     */
+    private float startY;
+    private float moveRange;
+    //当前音量
+    private int curVol;
+
+
     private GestureDetector.OnGestureListener gestureListener = new GestureDetector.SimpleOnGestureListener(){
         /**
          * 单击屏幕
@@ -494,6 +504,24 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
     public boolean onTouchEvent(MotionEvent event) {
         //将事件传递给手势识别器
         detector.onTouchEvent(event);
+        switch (event.getAction()){
+            case MotionEvent.ACTION_DOWN:
+                startY = event.getY();
+                moveRange = Math.min(screenHeight, screenWidth);
+                curVol = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+                break;
+            case MotionEvent.ACTION_MOVE:
+                float moveY = event.getY();
+                float distance = startY - moveY;
+                float changeVol = distance * maxVolume / moveRange;
+                if (changeVol != 0){
+                    isMute = false;
+                    updateVoice((int) (changeVol+curVol), isMute);
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+                break;
+        }
         return super.onTouchEvent(event);
 
     }
@@ -515,7 +543,8 @@ public class SystemVideoPlayer extends AppCompatActivity implements MediaPlayer.
         @Override
         public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
             if (fromUser){
-                updateVoice(progress, false);
+                isMute = false;
+                updateVoice(progress, isMute);
             }
         }
 
